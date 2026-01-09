@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Library Management Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans p-4 sm:p-8">
+  <div class="max-w-6xl mx-auto bg-white shadow-xl rounded-xl p-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">Library System Console</h1>
+
+    <!-- Tab Navigation -->
+    <div class="flex border-b border-gray-200 mb-6">
+      <button onclick="openTab('dashboard', this)" class="tab-button active py-2 px-4 text-sm text-gray-600 hover:text-indigo-600 transition duration-150 border-b-2 border-indigo-600 font-semibold">Dashboard</button>
+      <button onclick="openTab('books', this)" class="tab-button py-2 px-4 text-sm text-gray-600 hover:text-indigo-600 transition duration-150">Book Inventory</button>
+      <button onclick="openTab('patrons', this)" class="tab-button py-2 px-4 text-sm text-gray-600 hover:text-indigo-600 transition duration-150">Patrons</button>
+      <button onclick="openTab('forms', this)" class="tab-button py-2 px-4 text-sm text-gray-600 hover:text-indigo-600 transition duration-150">Add Records</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="tab-content active">
+      <h2 class="text-2xl font-semibold mb-4 text-indigo-700">Active Loans</h2>
+      <div id="active-loans-table" class="mb-8 overflow-x-auto">
+        <!-- Active loans will be loaded here -->
+      </div>
+
+      <h2 class="text-2xl font-semibold mb-4 text-indigo-700 border-t pt-4">Checkout Book</h2>
+      <form id="checkout-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+        <div>
+          <label for="checkout-book-id" class="block text-sm font-medium text-gray-700">Select Book</label>
+          <select id="checkout-book-id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2"></select>
+        </div>
+        <div>
+          <label for="checkout-patron-id" class="block text-sm font-medium text-gray-700">Select Patron</label>
+          <select id="checkout-patron-id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2"></select>
+        </div>
+        <button type="submit" class="self-end px-4 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 transition">
+          Checkout
+        </button>
+      </form>
+    </div>
+
+    <!-- Book Inventory -->
+    <div id="books" class="tab-content">
+      <h2 class="text-2xl font-semibold mb-4 text-indigo-700">Book Inventory List</h2>
+      <div id="books-table" class="overflow-x-auto">
+        <!-- Book data will be loaded here -->
+      </div>
+    </div>
+
+    <!-- Patrons -->
+    <div id="patrons" class="tab-content">
+      <h2 class="text-2xl font-semibold mb-4 text-indigo-700">Library Patrons List</h2>
+      <div id="patrons-table" class="overflow-x-auto">
+        <!-- Patron data will be loaded here -->
+      </div>
+    </div>
+
+    <!-- Add Records -->
+    <div id="forms" class="tab-content grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Book Form -->
+      <div class="p-4 border border-gray-200 rounded-lg">
+        <h3 class="text-xl font-medium mb-4 text-gray-800">Add New Book</h3>
+        <form id="add-book-form" class="space-y-3">
+          <input type="text" id="book-title" placeholder="Title" required class="w-full p-2 border rounded" />
+          <input type="text" id="book-author" placeholder="Author" required class="w-full p-2 border rounded" />
+          <input type="text" id="book-isbn" placeholder="ISBN (Unique)" required class="w-full p-2 border rounded" />
+          <input type="number" id="book-year" placeholder="Year" required class="w-full p-2 border rounded" />
+          <input type="number" id="book-copies" placeholder="Total Copies" required class="w-full p-2 border rounded" />
+          <button type="submit" class="w-full py-2 bg-green-500 text-white font-medium rounded-md hover:bg-green-600 transition">
+            Add Book
+          </button>
+        </form>
+      </div>
+
+      <!-- Patron Form -->
+      <div class="p-4 border border-gray-200 rounded-lg">
+        <h3 class="text-xl font-medium mb-4 text-gray-800">Register New Patron</h3>
+        <form id="add-patron-form" class="space-y-3">
+          <input type="text" id="patron-fname" placeholder="First Name" required class="w-full p-2 border rounded" />
+          <input type="text" id="patron-lname" placeholder="Last Name" required class="w-full p-2 border rounded" />
+          <input type="email" id="patron-email" placeholder="Email" required class="w-full p-2 border rounded" />
+          <input type="text" id="patron-phone" placeholder="Phone Number" class="w-full p-2 border rounded" />
+          <select id="patron-status" class="w-full p-2 border rounded">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+          <button type="submit" class="w-full py-2 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 transition">
+            Register Patron
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Message Box -->
+    <div id="message-box" class="fixed bottom-4 right-4 p-3 rounded-lg text-white font-medium transition-opacity duration-300 opacity-0 hidden"></div>
+  </div>
+
+  <script>
+    const BASE_URL = 'http://localhost:8080/api';
+
+// Function to display messages (instead of using alert())
+function showMessage(message, type = 'success') {
+    const box = document.getElementById('message-box');
+    box.textContent = message;
+    box.className = 'fixed bottom-4 right-4 p-3 rounded-lg text-white font-medium transition-opacity duration-300';
+    
+    if (type === 'success') {
+        box.classList.add('bg-green-500');
+    } else if (type === 'error') {
+        box.classList.add('bg-red-500');
+    }
+
+    box.classList.remove('opacity-0', 'hidden');
+
+    setTimeout(() => {
+        box.classList.add('opacity-0');
+        box.addEventListener('transitionend', () => {
+            box.classList.add('hidden');
+        }, { once: true });
+    }, 3000);
+}
+
+// Tab Switching Logic
+function openTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(tabId).classList.add('active');
+
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector(`[onclick="openTab('${tabId}')"]`).classList.add('active');
+    
+    // Refresh data when switching to the main tabs
+    if (tabId === 'books') loadBooks();
+    if (tabId === 'patrons') loadPatrons();
+    if (tabId === 'dashboard') loadActiveLoans();
+}
+
+// Generic Fetch Function
+async function fetchData(url, options = {}) {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+        }
+        // Handle 204 No Content
+        if (response.status === 204) return null;
+        return await response.json();
+    } catch (error) {
+        console.error('Fetch error:', error);
+        showMessage(`Operation failed: ${error.message}`, 'error');
+        return null;
+    }
+}
+
+// Function to load and render all books
+async function loadBooks() {
+    const books = await fetchData(`${BASE_URL}/books`);
+    const tableContainer = document.getElementById('books-table');
+    if (!books || books.length === 0) {
+        tableContainer.innerHTML = '<p class="text-gray-500">No books found in inventory.</p>';
+        return;
+    }
+    // (Implement table rendering here using a loop over the 'books' array)
+    // For now, let's just log the count:
+    tableContainer.innerHTML = `<p>Found ${books.length} books. (Table rendering coming next)</p>`;
+    // This part is extensive, we'll focus on the logic first.
+}
+
+// Function to load and render all patrons
+async function loadPatrons() {
+    const patrons = await fetchData(`${BASE_URL}/patrons`);
+    const tableContainer = document.getElementById('patrons-table');
+    if (!patrons || patrons.length === 0) {
+        tableContainer.innerHTML = '<p class="text-gray-500">No patrons registered.</p>';
+        return;
+    }
+    // (Implement table rendering here)
+    tableContainer.innerHTML = `<p>Found ${patrons.length} patrons. (Table rendering coming next)</p>`;
+}
+
+// Function to load and render active loans for the Dashboard
+async function loadActiveLoans() {
+    const loans = await fetchData(`${BASE_URL}/loans/active`);
+    const tableContainer = document.getElementById('active-loans-table');
+    if (!loans || loans.length === 0) {
+        tableContainer.innerHTML = '<p class="text-gray-500">No active loans currently.</p>';
+        return;
+    }
+    // (Implement table rendering here, including the RETURN button)
+    tableContainer.innerHTML = `<p>Found ${loans.length} active loans. (Table rendering coming next)</p>`;
+    
+    // Also, load the dropdowns for the Checkout Form when the dashboard loads
+    loadCheckoutFormDropdowns();
+}
+
+// Function to populate the Book/Patron dropdowns in the Checkout Form
+async function loadCheckoutFormDropdowns() {
+    const bookSelect = document.getElementById('checkout-book-id');
+    const patronSelect = document.getElementById('checkout-patron-id');
+
+    // Fetch available books
+    const availableBooks = await fetchData(`${BASE_URL}/loans/available-books`);
+    bookSelect.innerHTML = availableBooks ? availableBooks.map(b => 
+        `<option value="${b.id}">${b.title} (${b.availableCopies} available)</option>`
+    ).join('') : '<option>No books available</option>';
+
+    // Fetch all patrons
+    const patrons = await fetchData(`${BASE_URL}/patrons-list`);
+    patronSelect.innerHTML = patrons ? patrons.map(p => 
+        `<option value="${p.id}">${p.firstName} ${p.lastName} (ID: ${p.id})</option>`
+    ).join('') : '<option>No patrons registered</option>';
+}
+
+// Function to handle adding a new book
+async function handleAddBook(event) {
+    event.preventDefault();
+    const bookData = {
+        isbn: document.getElementById('book-isbn').value,
+        title: document.getElementById('book-title').value,
+        author: document.getElementById('book-author').value,
+        publicationYear: parseInt(document.getElementById('book-year').value),
+        totalCopies: parseInt(document.getElementById('book-copies').value),
+        availableCopies: parseInt(document.getElementById('book-copies').value) // Initially all copies are available
+    };
+
+    const newBook = await fetchData(`${BASE_URL}/books`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookData)
+    });
+
+    if (newBook) {
+        showMessage(`Book '${newBook.title}' added successfully!`);
+        document.getElementById('add-book-form').reset();
+        loadBooks(); // Refresh the list
+        loadCheckoutFormDropdowns(); // Refresh dropdowns
+    }
+}
+
+// Function to handle registering a new patron
+async function handleAddPatron(event) {
+    event.preventDefault();
+    const patronData = {
+        firstName: document.getElementById('patron-fname').value,
+        lastName: document.getElementById('patron-lname').value,
+        email: document.getElementById('patron-email').value,
+        phoneNumber: document.getElementById('patron-phone').value,
+        membershipStatus: document.getElementById('patron-status').value
+    };
+
+    const newPatron = await fetchData(`${BASE_URL}/patrons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patronData)
+    });
+
+    if (newPatron) {
+        showMessage(`Patron '${newPatron.firstName} ${newPatron.lastName}' registered successfully!`);
+        document.getElementById('add-patron-form').reset();
+        loadPatrons(); // Refresh the list
+        loadCheckoutFormDropdowns(); // Refresh dropdowns
+    }
+}
+
+// Function to handle checking out a book
+async function handleCheckout(event) {
+    event.preventDefault();
+    const bookId = document.getElementById('checkout-book-id').value;
+    const patronId = document.getElementById('checkout-patron-id').value;
+    
+    const url = `${BASE_URL}/loans/checkout?bookId=${bookId}&patronId=${patronId}`;
+    const newLoan = await fetchData(url, { method: 'POST' });
+
+    if (newLoan) {
+        showMessage(`Book checked out successfully! Loan ID: ${newLoan.id}`);
+        loadActiveLoans(); // Refresh active loans table
+        loadBooks(); // Refresh book inventory (copies reduced)
+    }
+}
+
+// Function to handle returning a book
+async function handleReturn(loanId) {
+    const url = `${BASE_URL}/loans/return/${loanId}`;
+    const returnedLoan = await fetchData(url, { method: 'POST' });
+
+    if (returnedLoan) {
+        let fineMsg = returnedLoan.fineAmount > 0 ? ` A fine of $${returnedLoan.fineAmount.toFixed(2)} was calculated.` : '';
+        showMessage(`Book returned successfully! Loan ID: ${loanId}.${fineMsg}`);
+        loadActiveLoans(); // Refresh active loans table (loan should disappear)
+        loadBooks(); // Refresh book inventory (copies increased)
+    }
+}
+
+// Event Listeners and Initial Load
+document.addEventListener('DOMContentLoaded', () => {
+    // Add event listeners to the forms
+    document.getElementById('add-book-form').addEventListener('submit', handleAddBook);
+    document.getElementById('add-patron-form').addEventListener('submit', handleAddPatron);
+    document.getElementById('checkout-form').addEventListener('submit', handleCheckout);
+
+    // Initial load of the dashboard
+    openTab('dashboard'); 
+});
+  </script>
+</body>
+</html>
